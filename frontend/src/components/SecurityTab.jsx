@@ -203,7 +203,7 @@ export default function SecurityTab({ chain, onTamper, onRestore, validity }) {
           </div>
 
           {/* Explanation */}
-          <div className="mt-6 rounded-lg bg-card border border-border p-5">
+          {/* <div className="mt-6 rounded-lg bg-card border border-border p-5">
             <h3 className="mb-3 font-mono text-[10px] font-bold uppercase tracking-widest text-text-secondary border-b border-border pb-2">
               Security Architecture: Tampering Defense
             </h3>
@@ -240,7 +240,7 @@ export default function SecurityTab({ chain, onTamper, onRestore, validity }) {
                 is the core immutable guarantee.
               </p>
             </div>
-          </div>
+          </div> */}
         </div>
       </div>
     </div>

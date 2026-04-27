@@ -1,7 +1,7 @@
 const INITIAL_WALLETS = [
   {
     id: 0,
-    name: "Alice",
+    name: "Skanda",
     address: "0xA1c3f4B2...f8e2",
     balance: 1000,
     color: "#7f77dd",
@@ -9,7 +9,7 @@ const INITIAL_WALLETS = [
   },
   {
     id: 1,
-    name: "Bob",
+    name: "Smithi",
     address: "0xB0b2c9D1...a3d1",
     balance: 750,
     color: "#5dcaa5",
@@ -17,7 +17,7 @@ const INITIAL_WALLETS = [
   },
   {
     id: 2,
-    name: "Charlie",
+    name: "Siddarth",
     address: "0xC4a7e3F9...b912",
     balance: 500,
     color: "#f0997b",
@@ -25,7 +25,7 @@ const INITIAL_WALLETS = [
   },
   {
     id: 3,
-    name: "Diana",
+    name: "Sairaj",
     address: "0xD1a5b8C6...c6e0",
     balance: 1250,
     color: "#ef9f27",
@@ -33,7 +33,7 @@ const INITIAL_WALLETS = [
   },
   {
     id: 4,
-    name: "Eve",
+    name: "Susheep",
     address: "0xE9b3d2A7...d2f7",
     balance: 600,
     color: "#85b7eb",
@@ -41,7 +41,7 @@ const INITIAL_WALLETS = [
   },
   {
     id: 5,
-    name: "Frank",
+    name: "Ram",
     address: "0xF7d1e5B4...e5a4",
     balance: 900,
     color: "#97c459",

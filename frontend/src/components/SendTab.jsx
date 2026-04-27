@@ -67,7 +67,7 @@ export default function SendTab({ wallets, onSend, mining }) {
             >
               {wallets.map((w) => (
                 <option key={w.id} value={w.id} className="bg-panel">
-                  {w.name} — {w.address}
+                  {w.name} 
                 </option>
               ))}
             </select>

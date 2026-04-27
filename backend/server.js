@@ -11,47 +11,29 @@ app.use(cors());
 const chain = new Blockchain();
 const wallets = new WalletManager();
 
-// Store original data for tamper/restore
 const originalBlockData = new Map();
 
 console.log("\n🚀 G13Coin Blockchain Server starting...");
 console.log(`  Genesis block mined. Chain initialized.\n`);
 
-// ─── GET /blocks ──────────────────────────────────────────────────────────────
-// Returns the full blockchain
 app.get("/blocks", (req, res) => {
   res.json(chain.chain);
 });
 
-// app.post("/wallets", (req, res) => {
-//   const { name } = req.body;
-//   if (!name) return res.status(400).json({ error: "Name is required" });
-
-//   const newWallet = walletManager.addWallet(name);
-//   res.json(newWallet);
-// });
-
-// ─── GET /stats ───────────────────────────────────────────────────────────────
-// Returns chain statistics
 app.get("/stats", (req, res) => {
   res.json(chain.getStats());
 });
 
-// ─── GET /wallets ─────────────────────────────────────────────────────────────
-// Returns all wallets and balances
+
 app.get("/wallets", (req, res) => {
   res.json(wallets.getAll());
 });
 
-// ─── GET /validate ────────────────────────────────────────────────────────────
-// Validates chain integrity
+
 app.get("/validate", (req, res) => {
   res.json(chain.isChainValid());
 });
 
-// ─── POST /mine ───────────────────────────────────────────────────────────────
-// Mines a new transaction block
-// Body: { fromId, toId, amount, memo }
 app.post("/mine", (req, res) => {
   const { fromId, toId, amount, memo } = req.body;
 
@@ -86,7 +68,6 @@ app.post("/mine", (req, res) => {
     new Block(chain.chain.length, new Date().toISOString(), txData),
   );
 
-  // Save original for restore
   originalBlockData.set(newBlock.index, JSON.parse(JSON.stringify(txData)));
 
   res.json({
@@ -97,9 +78,6 @@ app.post("/mine", (req, res) => {
   });
 });
 
-// ─── POST /tamper ─────────────────────────────────────────────────────────────
-// Simulates a hack on a specific block
-// Body: { index, attackType }  attackType: 'amount' | 'receiver' | 'wipe'
 app.post("/tamper", (req, res) => {
   const { index, attackType } = req.body;
   const block = chain.chain[index];
@@ -136,8 +114,6 @@ app.post("/tamper", (req, res) => {
   });
 });
 
-// ─── POST /restore ────────────────────────────────────────────────────────────
-// Restores all tampered blocks to original data
 app.post("/restore", (req, res) => {
   let restored = 0;
   chain.chain.forEach((block, i) => {
@@ -155,8 +131,6 @@ app.post("/restore", (req, res) => {
   });
 });
 
-// ─── POST /reset ──────────────────────────────────────────────────────────────
-// Full reset — fresh chain + fresh wallets
 app.post("/reset", (req, res) => {
   chain.chain = [chain._createGenesisBlock()];
   wallets.reset();

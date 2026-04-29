@@ -1,260 +1,205 @@
 import { useState } from "react";
+import { api } from "../api";
 
-export default function ExplorerTab({ chain, validity }) {
-  const [expanded, setExpanded] = useState(new Set([chain.length - 1]));
+export default function ExplorerTab({
+  blocks,
+  currentUser,
+  refreshGlobalData,
+}) {
+  const [editingIndex, setEditingIndex] = useState(null);
+  const [rawJson, setRawJson] = useState("");
+  const [tamperError, setTamperError] = useState("");
+  const [editHash, setEditHash] = useState(""); // 🔥 NEW
+  const [editPrevHash, setEditPrevHash] = useState(""); // 🔥 NEW
 
-  const toggle = (i) => {
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      next.has(i) ? next.delete(i) : next.add(i);
-      return next;
-    });
+  const handleEditClick = (block, index) => {
+    // You cannot edit the Genesis Block (Index 0)
+    if (index === 0) return;
+    setEditingIndex(index);
+    setRawJson(JSON.stringify(block.data, null, 2));
+    setTamperError("");
+    setEditHash(block.hash); // 🔥 NEW
+    setEditPrevHash(block.previousHash || "");
   };
+  const handleSaveHack = async (index) => {
+    try {
+      // Step 1: Make sure your typing is perfect
+      let parsedData;
+      try {
+        parsedData = JSON.parse(rawJson);
+      } catch (e) {
+        setTamperError(
+          "🚨 JSON FORMAT ERROR: You missed a quote, comma, or bracket. It must be perfect JSON!",
+        );
+        return; // Stop the hack until they fix the typo
+      }
 
-  const reversed = [...chain].reverse();
+      // Step 2: Inject the Hack
+      await api.tamper(
+        index,
+        parsedData,
+        currentUser?.name,
+        editHash,
+        editPrevHash,
+      );
+
+      setEditingIndex(null);
+      await refreshGlobalData(); // 🔥 This forces the TopBar to turn RED
+    } catch (err) {
+      setTamperError("Server rejected the connection.");
+    }
+  };
+  // const handleSaveHack = async (index) => {
+  //   try {
+  //     const parsedData = JSON.parse(rawJson); // Make sure they didn't break the JSON format
+
+  //     const response = await fetch("http://localhost:3001/tamper", {
+  //       method: "POST",
+  //       headers: { "Content-Type": "application/json" },
+  //       body: JSON.stringify({
+  //         index: index,
+  //         rawData: parsedData,
+  //         activeNodeName: currentUser?.name || "Unknown Hacker",
+  //       }),
+  //     });
+
+  //     const result = await response.json();
+
+  //     if (!response.ok) {
+  //       // 🔥 THIS IS THE SUCCESS STATE FOR YOUR DEMO! The system caught the hack.
+  //       setTamperError(result.error);
+  //       await refreshGlobalData(); // Refresh to pull the new Admin Logs
+  //     } else {
+  //       setEditingIndex(null);
+  //       await refreshGlobalData();
+  //     }
+  //   } catch (err) {
+  //     setTamperError(
+  //       "Invalid JSON structure. Please check your brackets and commas.",
+  //     );
+  //   }
+  // };
 
   return (
-    <div className="w-full animate-[fade-in_0.4s_ease-out] flex flex-col gap-6">
-      {/* Alert banner */}
-      {validity?.valid === false && (
-        <div className="flex items-center gap-4 rounded-xl border border-danger bg-danger-dim/40 px-6 py-4 font-mono text-sm text-danger shadow-[0_0_20px_rgba(248,113,113,0.15)] animate-[pulse-slow_2s_infinite]">
-          <span className="text-3xl">🚨</span>
-          <div>
-            <strong className="block text-base tracking-wide">
-              CRITICAL SECURITY ALERT: Chain Integrity Compromised at Block #
-              {validity.brokenAt}
-            </strong>
-            <span className="opacity-80 text-xs">
-              {validity.reason === "hash_mismatch"
-                ? "Cryptographic mismatch detected: payload data was tampered."
-                : "Cryptographic link broken: previousHash pointer invalidated."}
-            </span>
-          </div>
-        </div>
-      )}
+    <div className="space-y-6 animate-[fade-in_0.4s_ease-out]">
+      <div className="flex items-center justify-between">
+        <h2 className="font-mono text-sm font-bold uppercase tracking-widest text-primary">
+          🔍 Global Ledger Explorer
+        </h2>
+      </div>
 
-      {/* Block list */}
-      <div className="rounded-xl border border-border bg-panel p-6 shadow-sm">
-        <div className="mb-6 flex items-center justify-between border-b border-border pb-4">
-          <h2 className="font-mono text-xs font-bold uppercase tracking-widest text-text-muted flex items-center gap-2">
-            <span className="text-primary">⛓️</span> Immutable Ledger —{" "}
-            {chain.length} Block{chain.length !== 1 ? "s" : ""}
-          </h2>
-          <span className="rounded bg-bg px-3 py-1.5 font-mono text-[10px] text-text-secondary border border-border shadow-inner">
-            Click a block to inspect payload
-          </span>
-        </div>
+      <div className="flex flex-col gap-4">
+        {blocks.map((block, index) => (
+          <div
+            key={index}
+            className="rounded-xl border border-border bg-panel p-6 shadow-lg"
+          >
+            <div className="mb-4 flex items-center justify-between border-b border-border/50 pb-4">
+              <span className="font-mono text-lg font-bold text-accent">
+                Block #{block.index}
+              </span>
+              <span className="font-mono text-xs text-text-muted">
+                {block.timestamp}
+              </span>
+            </div>
 
-        <div className="flex flex-col">
-          {reversed.map((block) => {
-            const i = block.index;
-            const open = expanded.has(i);
-            const isGen = block.data?.type === "genesis";
-            const isTamp = block.tampered;
+            <div className="grid grid-cols-1 gap-4 font-mono text-xs md:grid-cols-2">
+              <div className="truncate">
+                <span className="block text-[10px] uppercase text-text-muted">
+                  Block Hash
+                </span>
+                <span className="text-primary">{block.hash}</span>
+              </div>
+              <div className="truncate">
+                <span className="block text-[10px] uppercase text-text-muted">
+                  Previous Hash
+                </span>
+                <span className="text-text-secondary">
+                  {block.previousHash || "0".repeat(64)}
+                </span>
+              </div>
+            </div>
 
-            return (
-              <div key={i} className="animate-[fade-in_0.3s_ease]">
-                {/* Block header */}
-                <div
-                  onClick={() => toggle(i)}
-                  className={`group relative flex cursor-pointer items-center justify-between rounded-xl border px-5 py-4 transition-all duration-200 ${
-                    isTamp || validity?.brokenAt === i
-                      ? "border-danger bg-danger-dim/20 shadow-inner"
-                      : open
-                        ? "border-primary bg-primary-faint/40 shadow-md"
-                        : "border-border bg-card hover:border-border-hover hover:shadow-md hover:-translate-y-0.5"
-                  }`}
-                >
-                  {/* Left edge colored accent */}
-                  {(open || isTamp) && (
-                    <div
-                      className={`absolute left-0 top-0 h-full w-1.5 rounded-l-xl ${isTamp ? "bg-danger" : "bg-primary"}`}
-                    ></div>
-                  )}
-
-                  <div className="flex items-center gap-4 min-w-0 pl-1">
-                    <span
-                      className={`font-mono text-lg font-bold ${isTamp ? "text-danger" : "text-primary"}`}
-                    >
-                      #{i}
-                    </span>
-                    {isGen && (
-                      <span className="rounded border border-primary-dim bg-primary-faint px-2 py-1 font-mono text-[10px] font-bold tracking-widest text-primary shadow-sm">
-                        GENESIS
-                      </span>
-                    )}
-                    {isTamp && (
-                      <span className="rounded border border-danger-dark bg-danger-dim px-2 py-1 font-mono text-[10px] font-bold tracking-widest text-danger shadow-sm animate-pulse">
-                        TAMPERED
-                      </span>
-                    )}
-                    {!isGen && !isTamp && (
-                      <span className="truncate font-mono text-xs text-text-secondary max-w-[350px]">
-                        <span className="text-text">{block.data.sender}</span>
-                        <span className="mx-2 text-text-muted">→</span>
-                        <span className="text-text">{block.data.receiver}</span>
-                        <span className="mx-2 text-text-muted">·</span>
-                        <span className="text-accent font-bold">
-                          {block.data.amount?.toLocaleString()} G13C
-                        </span>
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex shrink-0 items-center gap-5">
-                    <span className="font-mono text-[10px] text-text-muted bg-bg px-2 py-1 rounded border border-border">
-                      nonce: {block.nonce?.toLocaleString()}
-                    </span>
-                    <span className="font-mono text-[10px] text-text-muted">
-                      {new Date(block.timestamp).toLocaleTimeString()}
-                    </span>
-                    <span
-                      className={`font-mono text-xl text-text-muted transition-transform duration-300 ${
-                        open
-                          ? "rotate-90 text-primary"
-                          : "group-hover:text-text"
-                      }`}
-                    >
-                      ›
-                    </span>
-                  </div>
-                </div>
-
-                {/* Expanded body */}
-                {open && (
-                  <div
-                    className={`-mt-2 rounded-b-xl border border-t-0 px-6 py-6 pt-8 shadow-inner ${
-                      isTamp
-                        ? "border-danger-dark bg-danger-dim/5"
-                        : "border-primary-dim bg-card-alt"
-                    }`}
+            <div className="mt-6 rounded-lg bg-card p-4">
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-[10px] uppercase text-text-muted font-bold">
+                  Block Payload (Data)
+                </span>
+                {index !== 0 && editingIndex !== index && (
+                  <button
+                    onClick={() => handleEditClick(block, index)}
+                    className="text-[10px] text-danger hover:text-danger-dark uppercase font-bold px-2 py-1 border border-danger/30 rounded bg-danger/10 transition-colors"
                   >
-                    <div className="grid gap-8 md:grid-cols-2">
-                      {/* Data section */}
-                      <div className="flex flex-col gap-4">
-                        <h3 className="flex items-center gap-2 border-b border-border pb-2 font-mono text-[10px] font-bold uppercase tracking-widest text-text-muted">
-                          <span className="text-text-secondary">📦</span>{" "}
-                          Payload Data
-                        </h3>
-                        {isGen ? (
-                          <p className="rounded-lg bg-bg p-4 font-mono text-xs italic text-text-secondary border border-border shadow-inner">
-                            "{block.data.message}"
-                          </p>
-                        ) : (
-                          <div className="flex flex-col gap-3 rounded-lg bg-bg p-4 border border-border shadow-inner">
-                            <KV k="TX ID" v={block.data.txId} />
-                            <KV
-                              k="Sender"
-                              v={`${block.data.sender} (${block.data.senderAddr?.slice(0, 12)}...)`}
-                            />
-                            <KV
-                              k="Receiver"
-                              v={`${block.data.receiver} (${block.data.receiverAddr?.slice(0, 12)}...)`}
-                            />
-                            <KV
-                              k="Transfer Amount"
-                              v={`${block.data.amount?.toLocaleString()} G13C`}
-                              vClass={`font-bold ${isTamp ? "text-danger" : "text-accent"}`}
-                            />
-                            {block.data.memo && (
-                              <KV
-                                k="Memo"
-                                v={`"${block.data.memo}"`}
-                                vClass="italic text-text-secondary"
-                              />
-                            )}
-                            {isTamp && (
-                              <div className="mt-2 border-t border-danger-dark/50 pt-3">
-                                <KV
-                                  k="⚠ Status"
-                                  v="DATA TAMPERED — hash mismatch"
-                                  vClass="text-danger font-bold animate-pulse"
-                                />
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Hash section */}
-                      <div className="flex flex-col gap-4">
-                        <h3 className="flex items-center gap-2 border-b border-border pb-2 font-mono text-[10px] font-bold uppercase tracking-widest text-text-muted">
-                          <span className="text-text-secondary">🔐</span>{" "}
-                          Cryptographic Proof
-                        </h3>
-                        <div className="flex flex-col gap-1.5">
-                          <p className="font-mono text-[10px] uppercase tracking-wider text-text-secondary">
-                            Previous Hash Pointer
-                          </p>
-                          <div className="break-all rounded-lg border border-border bg-bg p-3 font-mono text-xs leading-relaxed text-text-secondary shadow-inner">
-                            {block.previousHash}
-                          </div>
-                        </div>
-                        <div className="flex flex-col gap-1.5">
-                          <p className="font-mono text-[10px] uppercase tracking-wider text-text-secondary">
-                            Block Hash{" "}
-                            {isTamp ? (
-                              <span className="text-danger font-bold ml-2">
-                                (INVALIDATED)
-                              </span>
-                            ) : (
-                              <span className="text-primary font-bold ml-2">
-                                (VERIFIED)
-                              </span>
-                            )}
-                          </p>
-                          <div
-                            className={`break-all rounded-lg border p-3 font-mono text-xs leading-relaxed shadow-inner transition-colors ${
-                              isTamp
-                                ? "border-danger bg-danger-dim/20 text-danger"
-                                : "border-primary bg-primary-faint text-primary"
-                            }`}
-                          >
-                            {block.hash}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Connector Ring */}
-                {i > 0 && (
-                  <div className="flex flex-col items-center py-1.5 opacity-80">
-                    <div
-                      className={`h-4 w-0.5 ${isTamp ? "bg-danger" : "bg-primary"}`}
-                    />
-                    <div
-                      className={`h-3 w-3 rounded-full ring-4 ${
-                        isTamp
-                          ? "bg-danger ring-danger/20"
-                          : "bg-primary ring-primary/20"
-                      }`}
-                    />
-                    <div
-                      className={`h-4 w-0.5 ${isTamp ? "bg-danger" : "bg-primary"}`}
-                    />
-                  </div>
+                    🛠️ Edit Raw Data
+                  </button>
                 )}
               </div>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-}
 
-function KV({ k, v, vClass = "" }) {
-  return (
-    <div className="flex items-center justify-between gap-4 py-0.5">
-      <span className="shrink-0 font-mono text-[10px] uppercase tracking-wider text-text-muted">
-        {k}
-      </span>
-      <span
-        className={`text-right font-mono text-[11px] truncate ${vClass || "text-text"}`}
-      >
-        {v}
-      </span>
+              {/* THE HACKER TEXTBOX */}
+              {editingIndex === index ? (
+                <div className="mt-2 flex flex-col gap-3 animate-[fade-in_0.2s_ease-out]">
+                  {/* 🔥 NEW: Hash Editing Fields */}
+                  <div className="flex flex-col gap-2 bg-[#121212] p-3 rounded border border-danger/30">
+                    <div>
+                      <label className="text-[10px] text-danger-light font-bold uppercase mb-1 block">
+                        Spoof Block Hash:
+                      </label>
+                      <input
+                        type="text"
+                        value={editHash}
+                        onChange={(e) => setEditHash(e.target.value)}
+                        className="w-full bg-[#1e1e1e] text-primary border border-border rounded p-2 text-xs font-mono outline-none focus:border-danger"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-danger-light font-bold uppercase mb-1 block">
+                        Spoof Previous Hash:
+                      </label>
+                      <input
+                        type="text"
+                        value={editPrevHash}
+                        onChange={(e) => setEditPrevHash(e.target.value)}
+                        className="w-full bg-[#1e1e1e] text-text-secondary border border-border rounded p-2 text-xs font-mono outline-none focus:border-danger"
+                      />
+                    </div>
+                  </div>
+
+                  <textarea
+                    value={rawJson}
+                    onChange={(e) => setRawJson(e.target.value)}
+                    className="w-full h-32 rounded border border-danger/50 bg-[#1e1e1e] p-3 font-mono text-xs text-green-400 outline-none focus:border-danger"
+                  />
+
+                  {tamperError && (
+                    <div className="rounded border border-danger bg-danger/20 p-2 text-danger font-bold text-center animate-pulse">
+                      🚨 {tamperError}
+                    </div>
+                  )}
+
+                  <div className="flex gap-2 justify-end">
+                    <button
+                      onClick={() => setEditingIndex(null)}
+                      className="rounded bg-card border border-border px-4 py-2 font-bold hover:bg-border transition-colors text-text-muted"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => handleSaveHack(index)}
+                      className="rounded bg-danger px-4 py-2 font-bold text-white shadow hover:bg-danger-dark transition-colors"
+                    >
+                      Inject Tampered Data & Hashes
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <pre className="overflow-x-auto text-text-secondary text-xs p-2">
+                  {JSON.stringify(block.data, null, 2)}
+                </pre>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

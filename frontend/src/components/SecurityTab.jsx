@@ -1,284 +1,198 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { api } from "../api";
 
-const ATTACK_TYPES = [
-  {
-    id: "amount",
-    label: "Inflate Amount",
-    desc: "Changes transaction amount to 999,999 G13C",
-    icon: "💰",
-  },
-  {
-    id: "receiver",
-    label: "Redirect Funds",
-    desc: "Redirects payment to a hacker wallet",
-    icon: "🔀",
-  },
-  {
-    id: "wipe",
-    label: "Wipe Data",
-    desc: "Erases all transaction data from block",
-    icon: "🗑",
-  },
-];
+export default function SecurityTab({
+  chain,
+  validity,
+  wallets,
+  refreshGlobalData,
+}) {
+  const [logs, setLogs] = useState([]);
+  const [isChecking, setIsChecking] = useState(false);
+  const [checkResult, setCheckResult] = useState(null);
 
-export default function SecurityTab({ chain, onTamper, onRestore, validity }) {
-  const [selectedBlock, setSelectedBlock] = useState(null);
-  const [selectedAttack, setSelectedAttack] = useState("amount");
-  const [log, setLog] = useState([]);
-  const [loading, setLoading] = useState(false);
-
-  const targets = chain.filter((b) => b.data?.type === "transfer");
-  const isCorrupted = validity?.valid === false;
-
-  const handleAttack = async () => {
-    if (selectedBlock === null) return;
-    setLoading(true);
-    const result = await onTamper(selectedBlock, selectedAttack);
-    setLog((prev) => [
-      {
-        time: new Date().toLocaleTimeString(),
-        blockIndex: selectedBlock,
-        attackType: selectedAttack,
-        success: true,
-        detail: result,
-      },
-      ...prev,
-    ]);
-    setLoading(false);
+  // Poll the backend for Admin Alerts
+  const fetchLogs = async () => {
+    try {
+      const data = await api.getLogs();
+      setLogs(data);
+    } catch (err) {
+      console.error("Could not fetch admin logs");
+    }
   };
 
-  const handleRestore = async () => {
-    setLoading(true);
-    await onRestore();
-    setLog((prev) => [
-      {
-        time: new Date().toLocaleTimeString(),
-        attackType: "restore",
-        success: true,
-        detail: { message: "Chain restored — all hashes revalidated" },
-      },
-      ...prev,
-    ]);
-    setSelectedBlock(null);
-    setLoading(false);
+  useEffect(() => {
+    fetchLogs();
+    const interval = setInterval(fetchLogs, 2000); // Check for new hacks every 2 seconds
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleRunDiagnostics = () => {
+    setIsChecking(true);
+    setCheckResult(null);
+    // Simulate a deep system scan for the presentation
+    setTimeout(() => {
+      setIsChecking(false);
+      setCheckResult(validity);
+    }, 1500);
+  };
+
+  const handleBanNode = async (nodeId, nodeName) => {
+    const confirmBan = window.confirm(
+      `CRITICAL WARNING: Are you sure you want to permanently BAN ${nodeName} from the network?`,
+    );
+    if (confirmBan) {
+      try {
+        await api.banNode(nodeId);
+        await fetchLogs(); // Refresh logs to show the ban message
+        alert(`${nodeName} has been blacklisted.`);
+      } catch (err) {
+        alert("Failed to ban node.");
+      }
+    }
   };
 
   return (
-    <div className="w-full animate-[fade-in_0.4s_ease-out]">
-      <div className="grid gap-6 md:grid-cols-2 items-start">
-        {/* Attack Panel */}
-        <div className="rounded-xl border border-border bg-panel p-6 shadow-sm">
-          <h2 className="mb-6 font-mono text-xs font-bold uppercase tracking-widest text-text-muted flex items-center gap-2">
-            <span className="text-danger">⚔️</span> Threat Simulation
-          </h2>
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-[fade-in_0.4s_ease-out]">
+      {/* LEFT PANEL: The Admin Audit Logs */}
+      <div className="rounded-xl border border-border bg-panel p-6 shadow-lg flex flex-col h-[600px]">
+        <h2 className="mb-6 font-mono text-sm font-bold uppercase tracking-widest text-primary flex items-center justify-between">
+          <span>🛡️ Live Audit Logs</span>
+          <span className="text-[10px] bg-primary/20 text-primary px-2 py-1 rounded animate-pulse">
+            RECORDING
+          </span>
+        </h2>
 
-          {/* Step 1 */}
-          <div className="mb-6">
-            <h3 className="mb-3 font-mono text-[10px] font-bold uppercase tracking-widest text-text-secondary">
-              Step 1 — Select Target Block
-            </h3>
-            {targets.length === 0 ? (
-              <div className="rounded-lg border-2 border-dashed border-border bg-card/50 py-8 text-center">
-                <p className="font-mono text-xs text-text-muted">
-                  Mine some transactions first (go to Send tab)
-                </p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                {targets.map((b) => (
-                  <button
-                    key={b.index}
-                    onClick={() => setSelectedBlock(b.index)}
-                    className={`cursor-pointer rounded-lg border p-3 text-center transition-all duration-200 hover:-translate-y-0.5 ${
-                      selectedBlock === b.index
-                        ? "border-danger bg-danger-dim/20 shadow-[0_0_15px_rgba(248,113,113,0.1)]"
-                        : "border-border bg-card hover:border-border-hover hover:bg-card/80"
-                    }`}
-                  >
-                    <div
-                      className={`font-mono text-lg font-bold ${selectedBlock === b.index ? "text-danger" : "text-text"}`}
-                    >
-                      #{b.index}
-                    </div>
-                    <div className="mt-1 font-mono text-[9px] text-text-muted truncate px-1">
-                      {b.data.sender} → {b.data.receiver}
-                    </div>
-                    <div
-                      className={`mt-1.5 inline-block rounded bg-bg px-1.5 py-0.5 font-mono text-[9px] font-bold ${
-                        b.tampered ? "text-danger" : "text-accent"
-                      }`}
-                    >
-                      {b.tampered
-                        ? "⚠ COMPROMISED"
-                        : `${b.data.amount?.toLocaleString()} G13C`}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Step 2 */}
-          <div className="mb-6">
-            <h3 className="mb-3 font-mono text-[10px] font-bold uppercase tracking-widest text-text-secondary">
-              Step 2 — Choose Attack Vector
-            </h3>
+        <div className="flex-1 overflow-y-auto border border-border bg-bg rounded-lg p-4">
+          {logs.length === 0 ? (
+            <div className="h-full flex flex-col items-center justify-center text-text-muted font-mono text-xs opacity-50">
+              <span className="text-2xl mb-2">✅</span>
+              No network anomalies detected.
+            </div>
+          ) : (
             <div className="flex flex-col gap-3">
-              {ATTACK_TYPES.map((a) => (
-                <button
-                  key={a.id}
-                  onClick={() => setSelectedAttack(a.id)}
-                  className={`flex cursor-pointer items-center gap-4 rounded-lg border p-3 text-left transition-all duration-200 ${
-                    selectedAttack === a.id
-                      ? "border-primary bg-primary-faint shadow-[0_0_15px_rgba(124,110,240,0.1)]"
-                      : "border-border bg-card hover:border-border-hover hover:bg-card/80"
+              {logs.map((log, index) => (
+                <div
+                  key={index}
+                  className={`p-3 rounded border font-mono text-xs animate-[fade-in_0.3s_ease-out] ${
+                    log.type === "danger"
+                      ? "bg-danger/10 border-danger/50 text-danger-light"
+                      : "bg-card border-border text-text"
                   }`}
                 >
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-bg text-xl shadow-inner">
-                    {a.icon}
-                  </span>
-                  <div>
-                    <div
-                      className={`font-mono text-sm font-bold ${selectedAttack === a.id ? "text-primary" : "text-text"}`}
-                    >
-                      {a.label}
-                    </div>
-                    <div className="mt-0.5 font-mono text-[10px] text-text-muted">
-                      {a.desc}
-                    </div>
-                  </div>
-                </button>
+                  <span className="font-bold">⚠️ SYSTEM ALERT:</span>{" "}
+                  {log.message}
+                </div>
               ))}
             </div>
-          </div>
-
-          {/* Launch button */}
-          <button
-            onClick={handleAttack}
-            disabled={selectedBlock === null || loading}
-            className={`w-full rounded-lg py-3.5 font-mono text-sm font-bold tracking-wide transition-all shadow-md ${
-              selectedBlock !== null && !loading
-                ? "bg-danger border border-danger-dark text-white cursor-pointer hover:bg-danger-dark hover:-translate-y-0.5 hover:shadow-danger/20"
-                : "bg-danger-dim border border-danger-dark/50 text-danger/50 cursor-not-allowed opacity-60"
-            }`}
-          >
-            {loading
-              ? "Executing Exploit..."
-              : `⚠ Launch Attack on Block #${selectedBlock ?? "?"}`}
-          </button>
-
-          {isCorrupted && (
-            <button
-              onClick={handleRestore}
-              disabled={loading}
-              className="mt-4 w-full cursor-pointer rounded-lg border border-accent bg-accent-dim/20 py-3.5 font-mono text-sm font-bold tracking-wide text-accent transition-all hover:bg-accent-dim/40 hover:-translate-y-0.5 flex items-center justify-center gap-2"
-            >
-              <span className="animate-pulse">🛡️</span> Restore Ecosystem
-              Integrity
-            </button>
           )}
         </div>
+      </div>
 
-        {/* Log Panel */}
-        <div className="rounded-xl border border-border bg-panel p-6 shadow-sm flex flex-col h-full">
-          <h2 className="mb-6 font-mono text-xs font-bold uppercase tracking-widest text-text-muted flex items-center gap-2">
-            <span className="text-text-secondary">📋</span> System Logs
+      {/* RIGHT PANEL: Controls */}
+      <div className="flex flex-col gap-6 h-[600px]">
+        {/* Hash Diagnostics */}
+        <div className="rounded-xl border border-border bg-panel p-6 shadow-lg flex flex-col flex-1">
+          <h2 className="mb-4 font-mono text-sm font-bold uppercase tracking-widest text-accent">
+            🔗 Cryptographic Diagnostics
           </h2>
+          <div className="flex-1 flex flex-col justify-center">
+            <p className="text-xs text-text-secondary font-sans leading-relaxed mb-4">
+              Recalculate the SHA-256 hash of all blocks. If any user has
+              tampered with the ledger data bypassing the miner, the hash
+              pointers will misalign.
+            </p>
+            <button
+              onClick={handleRunDiagnostics}
+              disabled={isChecking}
+              className="w-full py-3 rounded bg-accent/20 border border-accent text-accent font-bold text-sm hover:bg-accent/30 transition-all disabled:opacity-50 cursor-pointer"
+            >
+              {isChecking
+                ? "Recalculating Global Hashes..."
+                : "Run System Hash Verification"}
+            </button>
+            {checkResult !== null && (
+              <div className="mt-4 animate-[fade-in_0.3s_ease-out]">
+                {checkResult.valid ? (
+                  <div className="p-3 rounded text-center font-bold text-sm border bg-green-500/10 border-green-500/50 text-green-400">
+                    ✅ SUCCESS: Blockchain integrity verified.
+                  </div>
+                ) : (
+                  <div className="p-4 rounded border bg-danger/10 border-danger/50 flex flex-col gap-3">
+                    <div className="text-center font-bold text-sm text-danger border-b border-danger/30 pb-2">
+                      🚨 FAILURE: HASH MISMATCH DETECTED
+                    </div>
 
-          <div className="flex-1 rounded-lg border border-border bg-bg p-4 shadow-inner overflow-hidden flex flex-col">
-            {log.length === 0 ? (
-              <div className="flex-1 flex flex-col items-center justify-center py-10 opacity-50">
-                <span className="text-3xl mb-2">📟</span>
-                <p className="font-mono text-xs text-text-muted">
-                  Awaiting system events...
-                </p>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-3 overflow-y-auto pr-2 max-h-[300px]">
-                {log.map((entry, i) => (
-                  <LogEntry key={i} entry={entry} />
-                ))}
+                    <div className="font-mono text-[10px] flex flex-col gap-2">
+                      <div className="text-text-muted">
+                        <span className="text-danger-light font-bold">
+                          FAULT LOCATION:
+                        </span>{" "}
+                        Block #{checkResult.brokenBlockIndex}
+                      </div>
+
+                      <div className="bg-bg p-2 rounded border border-border overflow-hidden">
+                        <span className="block text-text-muted uppercase mb-1">
+                          Original Locked Hash (Expected):
+                        </span>
+                        <span className="text-green-400 select-all">
+                          {checkResult.storedHash}
+                        </span>
+                      </div>
+
+                      <div className="bg-[#3a0a0a] p-2 rounded border border-danger/50 overflow-hidden">
+                        <span className="block text-danger uppercase mb-1">
+                          Recalculated Hash (From Hacked Data):
+                        </span>
+                        <span className="text-danger-light select-all">
+                          {checkResult.actualCalculatedHash}
+                        </span>
+                      </div>
+
+                      <p className="text-text-secondary mt-1">
+                        <span className="text-danger font-bold">
+                          CONCLUSION:
+                        </span>{" "}
+                        The data in Block #{checkResult.brokenBlockIndex} was
+                        altered after mining. The calculated hash no longer
+                        matches the stored hash.
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
+        </div>
 
-          {/* Explanation */}
-          {/* <div className="mt-6 rounded-lg bg-card border border-border p-5">
-            <h3 className="mb-3 font-mono text-[10px] font-bold uppercase tracking-widest text-text-secondary border-b border-border pb-2">
-              Security Architecture: Tampering Defense
-            </h3>
-            <div className="flex flex-col gap-2.5">
-              <p className="font-mono text-[10px] leading-relaxed text-text-muted">
-                Every block contains a{" "}
-                <span className="font-bold text-primary">SHA-256 hash</span> — a
-                unique cryptographic fingerprint. The next block stores this
-                hash as{" "}
-                <code className="rounded bg-bg px-1 py-0.5 text-primary border border-border">
-                  previousHash
-                </code>
-                .
-              </p>
-              <p className="font-mono text-[10px] leading-relaxed text-text-muted">
-                Tampering with Block #N alters its data, invalidating the
-                original hash. Since{" "}
-                <code className="rounded bg-bg px-1 py-0.5 text-primary border border-border">
-                  block.hash ≠ calculateHash()
-                </code>
-                , the{" "}
-                <span className="font-bold text-danger">
-                  integrity check fails
-                </span>
-                .
-              </p>
-              <p className="font-mono text-[10px] leading-relaxed text-text-muted">
-                Even if the hash is recalculated, Block #(N+1)'s{" "}
-                <code className="rounded bg-bg px-1 py-0.5 text-primary border border-border">
-                  previousHash
-                </code>{" "}
-                points to the old value, resulting in a{" "}
-                <span className="font-bold text-danger">broken link</span>. This
-                is the core immutable guarantee.
-              </p>
-            </div>
-          </div> */}
+        {/* Node Management (The Ban Hammer) */}
+        <div className="rounded-xl border border-danger/30 bg-panel p-6 shadow-lg flex flex-col flex-1">
+          <h2 className="mb-4 font-mono text-sm font-bold uppercase tracking-widest text-danger">
+            🔨 Node Management
+          </h2>
+          <div className="overflow-y-auto max-h-[150px] pr-2">
+            {wallets
+              .filter((w) => w.name !== "Admin-Console-0")
+              .map((w) => (
+                <div
+                  key={w.id}
+                  className="flex justify-between items-center py-2 border-b border-border/50 last:border-0"
+                >
+                  <span className="font-mono text-xs text-text">
+                    {w.name}{" "}
+                    <span className="text-text-muted">({w.balance} G13C)</span>
+                  </span>
+                  <button
+                    onClick={() => handleBanNode(w.id, w.name)}
+                    className="px-3 py-1 bg-danger/10 text-danger border border-danger/30 rounded text-[10px] font-bold hover:bg-danger hover:text-white transition-colors cursor-pointer"
+                  >
+                    BAN NODE
+                  </button>
+                </div>
+              ))}
+          </div>
         </div>
       </div>
-    </div>
-  );
-}
-
-function LogEntry({ entry }) {
-  const isRestore = entry.attackType === "restore";
-  return (
-    <div
-      className={`rounded border-l-4 p-3 animate-[slide-in_0.3s_ease] ${
-        isRestore
-          ? "border-accent bg-accent-dim/10"
-          : "border-danger bg-danger-dim/10"
-      }`}
-    >
-      <div className="flex items-center justify-between">
-        <span
-          className={`font-mono text-[10px] font-bold tracking-widest uppercase ${
-            isRestore ? "text-accent" : "text-danger"
-          }`}
-        >
-          {isRestore ? "[SYS_RESTORE]" : `[EXPLOIT_B${entry.blockIndex}]`}
-        </span>
-        <span className="font-mono text-[9px] text-text-muted opacity-70">
-          {entry.time}
-        </span>
-      </div>
-      {!isRestore && (
-        <p className="mt-1.5 font-mono text-[11px] text-text">
-          <span className="text-text-muted">Vector:</span> {entry.attackType}
-        </p>
-      )}
-      <p
-        className={`mt-1 font-mono text-[10px] ${isRestore ? "text-accent" : "text-danger/80"}`}
-      >
-        &gt; {entry.detail?.message || "Execution successful."}
-      </p>
     </div>
   );
 }

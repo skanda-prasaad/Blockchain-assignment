@@ -10,16 +10,24 @@ const req = async (method, path, body) => {
 };
 
 export const api = {
+  // Standard Network Calls
+  getLogs: () => req("GET", "/logs"),
+  banNode: (nodeId) => req("POST", "/ban", { nodeId }),
   getBlocks: () => req("GET", "/blocks"),
   getWallets: () => req("GET", "/wallets"),
   getStats: () => req("GET", "/stats"),
   validate: () => req("GET", "/validate"),
-  mine: (fromId, toId, amount, memo) =>
-    req("POST", "/mine", { fromId, toId, amount, memo }),
-  tamper: (index, attackType) => req("POST", "/tamper", { index, attackType }),
-  restore: () => req("POST", "/restore"),
-  reset: () => req("POST", "/reset"),
 
-  // 🔥 NEW: Dynamic wallet deployment endpoint
+  // The Trap / Hacker Routes
+  tamper: (index, rawData, activeNodeName, newHash, newPrevHash) => 
+    req("POST", "/tamper", { index, rawData, activeNodeName, newHash, newPrevHash }),
+
+  // System Controls
+  reset: () => req("POST", "/reset"),
   addWallet: (name) => req("POST", "/wallets", { name }),
+
+  // 🔥 NEW: The Mempool & Mining Routes
+  getPending: () => req("GET", "/pending"),
+  sendTransaction: (data) => req("POST", "/transaction", data),
+  minePending: () => req("POST", "/mine"),
 };

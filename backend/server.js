@@ -127,25 +127,63 @@ app.post("/mine", (req, res) => {
   }
 
   console.log(
-    `⛏️  System executing Proof of Work on ${pendingTransactions.length} transaction(s)...`,
+    `\n⛏️  System executing Proof of Work on ${pendingTransactions.length} transaction(s)...`,
   );
+  const startTime = Date.now();
 
-  // Create a block with the entire array of pending transactions
+  // 1. Create the base block
   const newBlock = new Block(chain.chain.length, new Date().toISOString(), [
     ...pendingTransactions,
   ]);
-  chain.addBlock(newBlock);
+  newBlock.previousHash = chain.chain[chain.chain.length - 1].hash;
+  newBlock.nonce = 0; // The guessing number!
 
-  // Clear the mempool now that it's mined
+  // 🔥 2. THE PROOF OF WORK ALGORITHM
+  const difficulty = 4; // The hash MUST start with four zeros: "0000"
+  const target = "0".repeat(difficulty);
+  const crypto = require("crypto");
+
+  console.log(
+    `🔒 Target set. Searching for a hash starting with "${target}"...`,
+  );
+
+  // The infinite loop: Guess, Hash, Check. Repeat until we win.
+  while (true) {
+    const hashString =
+      newBlock.index +
+      newBlock.timestamp +
+      JSON.stringify(newBlock.data) +
+      newBlock.previousHash +
+      newBlock.nonce;
+    newBlock.hash = crypto
+      .createHash("sha256")
+      .update(hashString)
+      .digest("hex");
+
+    if (newBlock.hash.startsWith(target)) {
+      break; // WE FOUND IT! Break the loop.
+    }
+
+    newBlock.nonce++; // Wrong guess. Add 1 to the nonce and try again!
+  }
+
+  // 3. Victory!
+  const timeTaken = ((Date.now() - startTime) / 1000).toFixed(2);
+  console.log(
+    `💎 BLOCK MINED! It took ${timeTaken} seconds and ${newBlock.nonce} guesses.`,
+  );
+  console.log(`🔗 Winning Hash: ${newBlock.hash}\n`);
+
+  // Add to chain and clear mempool
+  chain.addBlock(newBlock);
   pendingTransactions = [];
 
   res.json({
-    message: "Block successfully mined and hashed",
+    message: `Block successfully mined in ${timeTaken} seconds!`,
     block: newBlock,
     validity: chain.isChainValid(),
   });
 });
-
 // ─── POST /tamper (THE PROFESSOR'S TRAP) ──────────────────────────────────────
 // This intercepts manual raw data edits. If the hash breaks, it alerts the admin.
 app.post("/tamper", (req, res) => {

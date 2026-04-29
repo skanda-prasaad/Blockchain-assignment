@@ -4,6 +4,7 @@ export default function TopBar({
   activeTab,
   onTabChange,
   mining,
+  currentUser, // 🔥 Added currentUser prop
 }) {
   const chainOk = validity?.valid !== false;
 
@@ -52,19 +53,41 @@ export default function TopBar({
       </div>
 
       <nav className="flex gap-2 px-6 pt-2">
-        {["Wallets", "Send", "Explorer", "Security"].map((t) => (
-          <button
-            key={t}
-            onClick={() => onTabChange(t)}
-            className={`cursor-pointer border-b-2 px-6 py-3 font-mono text-sm font-semibold tracking-wide transition-all rounded-t-md ${
-              activeTab === t
-                ? "border-primary text-primary bg-primary/5"
-                : "border-transparent text-text-muted hover:bg-card hover:text-text-secondary"
-            }`}
-          >
-            {t}
-          </button>
-        ))}
+        {currentUser?.name === "Admin-Console-0" ? (
+          // 🔥 WHAT THE ADMIN SEES
+          <>
+            {["System Logs", "Security"].map((t) => (
+              <button
+                key={t}
+                onClick={() => onTabChange(t)}
+                className={`cursor-pointer border-b-2 px-6 py-3 font-mono text-sm font-semibold tracking-wide transition-all rounded-t-md ${
+                  activeTab === t
+                    ? "border-danger text-danger bg-danger/10 shadow-[inset_0_-2px_10px_rgba(255,85,85,0.1)]"
+                    : "border-transparent text-danger-light hover:bg-danger/5 hover:text-danger"
+                }`}
+              >
+                {t === "Security" ? "🛡️ Security" : t}
+              </button>
+            ))}
+          </>
+        ) : (
+          // 👤 WHAT NORMAL USERS SEE
+          <>
+            {["Wallets", "Send", "Explorer"].map((t) => (
+              <button
+                key={t}
+                onClick={() => onTabChange(t)}
+                className={`cursor-pointer border-b-2 px-6 py-3 font-mono text-sm font-semibold tracking-wide transition-all rounded-t-md ${
+                  activeTab === t
+                    ? "border-primary text-primary bg-primary/5"
+                    : "border-transparent text-text-muted hover:bg-card hover:text-text-secondary"
+                }`}
+              >
+                {t}
+              </button>
+            ))}
+          </>
+        )}
       </nav>
     </header>
   );

@@ -1,6 +1,15 @@
 const INITIAL_WALLETS = [
+  // 🔥 THE NEW ADMIN NODE
   {
     id: 0,
+    name: "Admin-Console-0",
+    address: "0x00000000...0000",
+    balance: "N/A",
+    color: "#ff5555",
+    bg: "#3a0a0a",
+  },
+  {
+    id: 1,
     name: "Skanda",
     address: "0xA1c3f4B2...f8e2",
     balance: 1000,
@@ -8,7 +17,7 @@ const INITIAL_WALLETS = [
     bg: "#26215c",
   },
   {
-    id: 1,
+    id: 2,
     name: "Smithi",
     address: "0xB0b2c9D1...a3d1",
     balance: 750,
@@ -16,7 +25,7 @@ const INITIAL_WALLETS = [
     bg: "#04342c",
   },
   {
-    id: 2,
+    id: 3,
     name: "Siddarth",
     address: "0xC4a7e3F9...b912",
     balance: 500,
@@ -24,7 +33,7 @@ const INITIAL_WALLETS = [
     bg: "#4a1b0c",
   },
   {
-    id: 3,
+    id: 4,
     name: "Sairaj",
     address: "0xD1a5b8C6...c6e0",
     balance: 1250,
@@ -32,7 +41,7 @@ const INITIAL_WALLETS = [
     bg: "#412402",
   },
   {
-    id: 4,
+    id: 5,
     name: "Susheep",
     address: "0xE9b3d2A7...d2f7",
     balance: 600,
@@ -40,7 +49,7 @@ const INITIAL_WALLETS = [
     bg: "#042c53",
   },
   {
-    id: 5,
+    id: 6,
     name: "Ram",
     address: "0xF7d1e5B4...e5a4",
     balance: 900,
